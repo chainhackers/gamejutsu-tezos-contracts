@@ -1,0 +1,42 @@
+type game = { 
+    rules : address, 
+    started : bool,
+    finished: bool,
+    key_hash_to_player_id: map<key_hash, nat>,
+    players: [key, key]
+  } ;
+
+type storage = map<nat, game>;
+
+type game_move = {
+  game_id: nat,
+  nonce: nat,
+  player: key,
+  old_state: bytes,
+  new_state: bytes,
+  move: bytes
+}
+
+type signed_game_move = {
+  game_move: game_move,
+  signatures: map<key_hash, signature> 
+}
+
+type parameter =
+| ["DisputeMove", signed_game_move]
+| ["ProposeGame", address]
+| ["AcceptGame", nat];
+
+const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) => store; //TODO
+const propose_game = ([store, rules] : [storage, address]) => store;
+const accept_game = ([store, game_id] : [storage, nat]) => store;
+
+const main = ([action, store] : [parameter, storage]) : [list <operation>, storage] => {
+ return [
+   list([]),
+   (match (action, {
+    DisputeMove: sgm => dispute_move ([store, sgm]),
+    ProposeGame: rules => propose_game ([store, rules]),
+    AcceptGame: game_id => accept_game ([store, game_id])}))
+  ]
+};
