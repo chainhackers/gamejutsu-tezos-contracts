@@ -5,6 +5,9 @@ type game = {
     key_hash_to_player_id: map<key_hash, nat>,
     players: [key, key]
   } ;
+const disqualify = (g: game, p: key) =>
+  ({...g, finished: true});
+
 
 type storage = map<nat, game>;
 
@@ -27,7 +30,24 @@ type parameter =
 | ["ProposeGame", address]
 | ["AcceptGame", nat];
 
-const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) => store; //TODO
+const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) => {
+  const game_id = signed_game_move.game_move.game_id;
+  // const game = {
+  return match(Map.find_opt(game_id, store), {
+   Some: game => {
+    const player = signed_game_move.game_move.player;
+    //TODO check move validity
+    //TODO check if player in game
+    //TODO check signature
+    Map.update(
+      game_id,  
+      Some(disqualify(game, player)),
+      store);
+   },
+   None: () => failwith("No game.")
+  });
+};
+    
 const propose_game = ([store, rules] : [storage, address]) => store;
 const accept_game = ([store, game_id] : [storage, nat]) => store;
 
@@ -39,4 +59,17 @@ const main = ([action, store] : [parameter, storage]) : [list <operation>, stora
     ProposeGame: rules => propose_game ([store, rules]),
     AcceptGame: game_id => accept_game ([store, game_id])}))
   ]
+};
+
+
+const move_is_signed_by_mover = (signed_move: signed_game_move) => {
+  const player = signed_move.game_move.player;
+  const kh = Crypto.hash_key(player);
+  return match(Map.find_opt (kh, signed_move.signatures), {
+   Some: sig => {
+    const move_packed = Bytes.pack(signed_move.game_move);
+    Crypto.check(player, sig, move_packed);
+   },
+   None: () => false
+  });
 };

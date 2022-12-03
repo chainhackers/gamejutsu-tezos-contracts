@@ -1,0 +1,170 @@
+#include "arbiter.jsligo"
+
+type tic_tac_toe_board = {
+        cells: map<nat, nat>,
+        crosses_win: bool,
+        naughts_win: bool
+    };
+
+type tic_tac_toe_move = nat;
+
+let assert_string_failure = ([res,expected] : [test_exec_result, string]) => {
+  let expected_bis = Test.eval (expected) ;
+  match (res, {
+    Fail: (x: test_exec_error) => (
+      match (x, {
+        Rejected: (x:[michelson_code,address]) => assert (Test.michelson_equal (x[0], expected_bis)),
+        Balance_too_low: (_: { contract_too_low : address , contract_balance : tez , spend_request : tez }) => Test.failwith ("contract failed for an unknown reason"),
+        Other: (_:string) => Test.failwith ("contract failed for an unknown reason")
+      })),
+    Success: (_:nat) => Test.failwith ("bad price check")
+  } );
+} ;
+
+
+const test_new_account_a = Test.new_account();
+const test_player_a = test_new_account_a[1];
+const test_player_a_secret_key = test_new_account_a[0];
+
+const test_emtpy_cells = Map.literal (list([
+      [0 as nat, 0 as nat],
+      [1 as nat, 0 as nat],
+      [2 as nat, 0 as nat],
+      [3 as nat, 0 as nat],
+      [4 as nat, 0 as nat],
+      [5 as nat, 0 as nat],
+      [6 as nat, 0 as nat],
+      [7 as nat, 0 as nat],
+      [8 as nat, 0 as nat]
+      ])) ;
+const test_empty_board = ({cells: test_emtpy_cells,
+                         crosses_win: false,
+                         naughts_win: false}) as tic_tac_toe_board;
+
+const test_packed_empty_board = Bytes.pack(test_empty_board);
+
+const test_invalid_game_move_both_states_empty = ({
+        game_id: 1 as nat,
+        nonce: 0 as nat,
+        player: test_player_a,
+        old_state: test_packed_empty_board,
+        new_state: test_packed_empty_board,
+        move: Bytes.pack(0)
+    }) as game_move;
+const test_invalid_game_move_packed = Bytes.pack(test_invalid_game_move_both_states_empty);
+const test_sig = Test.sign(
+        test_player_a_secret_key, 
+        Bytes.pack(test_invalid_game_move_packed));
+
+const test_player_a_hash = Crypto.hash_key(test_player_a);
+const test_signed_invalid_game_move = ({
+    game_move: test_invalid_game_move_both_states_empty,
+    signatures: Map.literal (list([
+        [test_player_a_hash, test_sig]
+    ]))
+});
+
+let test = ((_: unit): unit => {
+    const [player_a_secret_key, player_a] = test_new_account_a;
+    const [_player_b_secret_key, player_b] = Test.new_account();
+    const player_a_hash = Crypto.hash_key(player_a);
+    const player_b_hash = Crypto.hash_key(player_b);
+//TODO add session keys
+
+    const tic_tac_toe_rules_address = "tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx" as address;
+    const started_game = ({ 
+        rules : tic_tac_toe_rules_address, 
+        started: true,
+        finished: false,
+        key_hash_to_player_id:   Map.literal (list([
+            [player_a_hash, 1 as nat],
+            [player_b_hash, 1 as nat]
+        ])),
+         players: [player_a, player_b]
+      }) as game;
+
+    const player_a_disqualified_game =  ({ 
+        rules : tic_tac_toe_rules_address, 
+        started: true,
+        finished: true, //TODO emit events
+        key_hash_to_player_id:   Map.literal (list([
+            [player_a_hash, 1 as nat],
+            [player_b_hash, 1 as nat]
+        ])),
+         players: [player_a, player_b]
+      }) as game;
+
+
+  const init_storage = Map.literal (list([
+            [1 as nat, started_game]
+          ])) ;
+
+  const [arbiter_single_game_ta, _code, _size] = Test.originate (main, init_storage, 0 as tez);
+  /* Convert typed_address to contract */
+  let arbiter_single_game_ctr = Test.to_contract (arbiter_single_game_ta);
+  /* Convert contract to address */
+//   let arbiter_single_game = Tezos.address (arbiter_single_game_ctr);
+
+    const emtpy_cells = Map.literal (list([
+      [0 as nat, 0 as nat],
+      [1 as nat, 0 as nat],
+      [2 as nat, 0 as nat],
+      [3 as nat, 0 as nat],
+      [4 as nat, 0 as nat],
+      [5 as nat, 0 as nat],
+      [6 as nat, 0 as nat],
+      [7 as nat, 0 as nat],
+      [8 as nat, 0 as nat]
+      ])) ;
+    const empty_board = ({cells: emtpy_cells,
+                         crosses_win: false,
+                         naughts_win: false}) as tic_tac_toe_board;
+
+    const invalid_game_move = test_invalid_game_move_both_states_empty;
+
+    const sig = Test.sign(
+        player_a_secret_key, 
+        Bytes.pack(invalid_game_move));
+
+    
+    const signed_invalid_game_move = ({
+        game_move: invalid_game_move,
+        signatures: Map.literal (list([
+            [player_a_hash, sig]
+      ]))
+    });
+
+    const eq_games = ([g1, g2]: [game, game]) => 
+        g1.rules == g2.rules &&
+        g1.started == g2.started &&
+        g1.finished == g2.finished &&
+        g1.key_hash_to_player_id == g2.key_hash_to_player_id &&
+        Crypto.hash_key(g1.players[0]) == Crypto.hash_key(g2.players[0]) &&
+        Crypto.hash_key(g1.players[1]) == Crypto.hash_key(g2.players[1]);
+
+
+   /* Auxiliary function for testing equality in maps */
+  let eq_in_map = ([g, m, k] : [game, storage, nat]) =>
+    match(Map.find_opt(k, m), {
+     None: () => false,
+     Some: (v : game) => eq_games(v, g) }) ;
+
+
+   let ok_case : test_exec_result = Test.transfer_to_contract (
+    arbiter_single_game_ctr,
+    DisputeMove(signed_invalid_game_move), 
+    0 as tez) ;
+
+    let _u = match (ok_case, {
+        Success: (_:nat) => {
+            const storage = Test.get_storage (arbiter_single_game_ta) ;
+            assert_with_error (
+                eq_in_map(player_a_disqualified_game, storage, 1 as nat),
+                "The game should be finished"
+                ); //TODO 
+        },
+        Fail: (_: test_exec_error) => Test.failwith ("ok test case failed")
+    }) ;
+  
+  return unit
+}) ();
