@@ -3,4 +3,10 @@ GameJutsu framework helps you create on-chain arbiters for state channel based g
 
 ## Deployed contracts
 ### Ghostnet
-* [arbiter](https://ghostnet.tzkt.io/KT1UZzu4ar6STUj2Mxde2hKH8LncCmY2vfjt)
+* [arbiter](https://ghostnet.tzkt.io/KT1UhzvTeMbc3jcSCMjvosicfGAhbQBfQDZP)
+
+
+## Run tests
+```shell
+ligo run test test-arbiter.jsligo
+```
