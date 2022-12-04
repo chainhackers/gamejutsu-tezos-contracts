@@ -8,7 +8,7 @@ type tic_tac_toe_board = {
 
 type tic_tac_toe_move = nat;
 
-let assert_string_failure = ([res,expected] : [test_exec_result, string]) => {
+const assert_string_failure = ([res,expected] : [test_exec_result, string]) => {
   let expected_bis = Test.eval (expected) ;
   match (res, {
     Fail: (x: test_exec_error) => (
@@ -43,8 +43,10 @@ const test_empty_board = ({cells: test_emtpy_cells,
 
 const test_packed_empty_board = Bytes.pack(test_empty_board);
 
+const test_game_id = 1 as nat as game_id;
+
 const test_invalid_game_move_both_states_empty = ({
-        game_id: 1 as nat,
+        game_id: test_game_id,
         nonce: 0 as nat,
         player: test_player_a,
         old_state: test_packed_empty_board,
@@ -64,7 +66,7 @@ const test_signed_invalid_game_move = ({
     ]))
 });
 
-let test = ((_: unit): unit => {
+const test = ((_: unit): unit => {
     const [player_a_secret_key, player_a] = test_new_account_a;
     const [_player_b_secret_key, player_b] = Test.new_account();
     const player_a_hash = Crypto.hash_key(player_a);
@@ -96,7 +98,7 @@ let test = ((_: unit): unit => {
 
 
   const init_storage = Map.literal (list([
-            [1 as nat, started_game]
+            [test_game_id, started_game]
           ])) ;
 
   const [arbiter_single_game_ta, _code, _size] = Test.originate (main, init_storage, 0 as tez);
@@ -144,18 +146,18 @@ let test = ((_: unit): unit => {
 
 
    /* Auxiliary function for testing equality in maps */
-  let eq_in_map = ([g, m, k] : [game, storage, nat]) =>
+  const eq_in_map = ([g, m, k] : [game, storage, nat]) =>
     match(Map.find_opt(k, m), {
      None: () => false,
      Some: (v : game) => eq_games(v, g) }) ;
 
 
-   let ok_case : test_exec_result = Test.transfer_to_contract (
+   const ok_case : test_exec_result = Test.transfer_to_contract (
     arbiter_single_game_ctr,
     DisputeMove(signed_invalid_game_move), 
     0 as tez) ;
 
-    let _u = match (ok_case, {
+    const _u = match (ok_case, {
         Success: (_:nat) => {
             const storage = Test.get_storage (arbiter_single_game_ta) ;
             assert_with_error (

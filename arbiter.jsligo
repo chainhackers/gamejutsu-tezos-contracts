@@ -1,3 +1,5 @@
+type game_id = nat;
+
 type game = { 
     rules : address, 
     started : bool,
@@ -12,7 +14,7 @@ const disqualify = (g: game, p: key) =>
 type storage = map<nat, game>;
 
 type game_move = {
-  game_id: nat,
+  game_id: game_id,
   nonce: nat,
   player: key,
   old_state: bytes,
@@ -28,7 +30,7 @@ type signed_game_move = {
 type parameter =
 | ["DisputeMove", signed_game_move]
 | ["ProposeGame", address]
-| ["AcceptGame", nat];
+| ["AcceptGame", game_id];
 
 const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) => {
   const game_id = signed_game_move.game_move.game_id;
@@ -49,7 +51,7 @@ const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) =
 };
     
 const propose_game = ([store, rules] : [storage, address]) => store;
-const accept_game = ([store, game_id] : [storage, nat]) => store;
+const accept_game = ([store, game_id] : [storage, game_id]) => store;
 
 const main = ([action, store] : [parameter, storage]) : [list <operation>, storage] => {
  return [
@@ -74,7 +76,7 @@ const move_is_signed_by_mover = (signed_move: signed_game_move) => {
   });
 };
 
-const player_is_in_game = (player: key, game_id: nat) => false;
+const player_is_in_game = (player: key, game_id: game_id) => false;
 
 const game_move_is_signed_by = (game_move: game_move, key: key) => false;
 
