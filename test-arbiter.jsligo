@@ -51,7 +51,7 @@ const test_invalid_game_move_both_states_empty = ({
         player: test_player_a,
         old_state: test_packed_empty_board,
         new_state: test_packed_empty_board,
-        move: Bytes.pack(0)
+        move: Bytes.pack(5)
     }) as game_move;
 const test_invalid_game_move_packed = Bytes.pack(test_invalid_game_move_both_states_empty);
 const test_sig = Test.sign(

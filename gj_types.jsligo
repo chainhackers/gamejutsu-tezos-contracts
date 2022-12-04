@@ -13,7 +13,7 @@ type game_id = nat;
 type player_id = nat;
 
 type game = { 
-    rules : address, 
+    rules : address,  //address of the contract defining game rules
     started : bool,
     finished: bool,
     key_hash_to_player_id: map<key_hash, player_id>,
@@ -26,6 +26,9 @@ type games = map<nat, game>;
 type game_state = {
   game_id: game_id,
   nonce: nat,
+  //everything specific to a particular game is `bytes`
+  //these values are processed in separate rules contracts
+  //while the arbiter stays rules-agnostic
   game_specific_state: bytes  
 };
 
@@ -33,14 +36,14 @@ type game_move = {
   game_id: game_id,
   nonce: nat,
   player: key,
-  old_state: bytes,
-  new_state: bytes,
-  move: bytes
+  old_state: bytes, //packed game-specific state where the move is made
+  new_state: bytes, //packed game-specific state resulting from the move
+  move: bytes       //packed game-specific move data
 };
 
 type signed_game_move = {
   game_move: game_move,
-  signatures: map<key_hash, signature> 
+  signatures: map<key_hash, signature> //signatures of packed `game_move` by players
 }
 
 type validation_response = 
