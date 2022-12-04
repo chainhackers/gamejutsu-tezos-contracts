@@ -13,11 +13,9 @@ https://tezos.gamejutsu.app
 const disqualify = (g: game, p: key) =>
   ({...g, finished: true});
 
-type storage = map<nat, game>;
-
-type signed_game_move = {
-  game_move: game_move,
-  signatures: map<key_hash, signature> 
+type storage = {
+  games: games,
+  next_game_id: nat
 }
 
 type parameter =
@@ -27,24 +25,73 @@ type parameter =
 
 const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) => {
   const game_id = signed_game_move.game_move.game_id;
-  // const game = {
-  return match(Map.find_opt(game_id, store), {
+  return match(Map.find_opt(game_id, store.games), {
    Some: game => {
     const player = signed_game_move.game_move.player;
-    //TODO check move validity
+    //TODO check move validity using the rules contract
     //TODO check if player in game
     //TODO check signature
+    ({...store, games:
     Map.update(
       game_id,  
       Some(disqualify(game, player)),
-      store);
+      store.games)
+      });
    },
    None: () => failwith("No game.")
   });
 };
     
-const propose_game = ([store, rules, key] : [storage, address, key]) => store;
-const accept_game = ([store, game_id, key] : [storage, game_id, key]) => store;
+const propose_game = ([store, rules, key] : [storage, address, key]) => {
+    return match (Tezos.get_contract_opt(rules) as option<contract<unit>>, {
+      Some: contract => {
+            const new_game = {
+              rules : rules, 
+              started : false,
+              finished: false,
+              key_hash_to_player_id: Map.literal (list([
+                [Crypto.hash_key(key), 1 as nat as player_id]
+                ])),
+              players: [key, None()],
+              winner: 0 as nat
+              };
+          return {
+            games: Map.update(
+              store.next_game_id, Some(new_game), store.games
+              ),
+            next_game_id: store.next_game_id + (1 as nat)
+          }
+      },
+      None: () => failwith("Rules contract not found.")
+    });
+};
+
+const accept_game = ([store, game_id, key] : [storage, game_id, key]) => {
+  return match(Map.find_opt (game_id, store.games), {
+   Some: game => {
+    const key_hash = Crypto.hash_key(key);
+    if(Crypto.hash_key(game.players[0]) == key_hash){
+      return failwith("You can't accept your own game.")
+    };
+    const started_game = {...game, 
+      started: true,
+      key_hash_to_player_id: Map.update(
+        key_hash,
+        Some(2 as nat),
+        game.key_hash_to_player_id),
+      players: [game.players[0], Some(key)]
+      };
+    return {...store,
+      games: Map.update(
+        game_id,
+        Some(started_game),
+        store.games
+      )
+    }
+   },
+   None: () => failwith("Game ID not found.")
+  });
+  };
 
 const main = ([action, store] : [parameter, storage]) : [list <operation>, storage] => {
  return [

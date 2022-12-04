@@ -10,15 +10,15 @@ https://tezos.gamejutsu.app
 // SPDX-License-Identifier: MIT
 #include "gj_types.jsligo"
 
-/**
-//     @title TicTacToe Rules
-//     @notice Our take on the classic game, rules defined on-chain to (almost)never be checked
-//     @notice except by the arbiter when a dispute arises.
-//     @notice Block Born & Balthazar Hackathon submission by ChainHackers
-//     @author Gene A. Tsvigun
-//     @dev The state encodes the board as a 3x3 array of `nat`s with 0 for empty, 1 for X, and 2 for O
-//     @dev explicitly keeping wins as `bool crossesWin` and `bool noughtsWin`
-//     @dev yes we know the board can be packed more efficiently but we want to keep it simple
+/*
+     @title TicTacToe Rules
+     @notice Our take on the classic game, rules defined on-chain to (almost)never be checked
+     @notice except by the arbiter when a dispute arises.
+     @notice Block Born & Balthazar Hackathon submission by ChainHackers
+     @author Gene A. Tsvigun
+     @dev The state encodes the board as a 3x3 array of `nat`s with 0 for empty, 1 for X, and 2 for O
+     @dev explicitly keeping wins as `bool crossesWin` and `bool noughtsWin`
+     @dev yes we know the board can be packed more efficiently but we want to keep it simple
 */
 
 type tic_tac_toe_board = {
@@ -31,14 +31,28 @@ type tic_tac_toe_move = nat;
 
 const validate_game_move = ([game_move, _] : validate_game_move_params ): [list<operation>, unit] => {
     const arbiter = Tezos.get_contract_with_error(Tezos.get_sender(), "validate_game_move is to be invoked only by an Arbiter");
-    const game_id = game_move.game_id;
+    const game_id = game_move.game_id as game_id;
     const player_id = game_move.player
+    const old_board_opt = Bytes.unpack(game_move.old_state) as option<tic_tac_toe_board>;
+     
+    const result = match(old_board_opt, {
+        Some: old_board => {
+            const new_board_opt = Bytes.unpack(game_move.new_state) as option<tic_tac_toe_board>;
+            match(new_board_opt, {
+                Some: new_board => true, //TODO
+                None: () => false
+            })
+        },
+        None: () => false
+    }); 
+
     const response = Tezos.transaction(
-        DisqualifyPlayerFromGame(game_id), 
+        MoveIsValid([
+            game_move, result]), 
         0 as tez,
         arbiter);
     return [
-        list([]),
+        list([response]),
         unit
   ]
 };

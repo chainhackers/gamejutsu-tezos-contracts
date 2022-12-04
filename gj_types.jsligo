@@ -17,9 +17,11 @@ type game = {
     started : bool,
     finished: bool,
     key_hash_to_player_id: map<key_hash, player_id>,
-    players: [key, key],
+    players: [key, option<key>],
     winner: player_id //finished && winner == 0 means draw
   } ;
+
+type games = map<nat, game>;
 
 type game_state = {
   game_id: game_id,
@@ -36,7 +38,11 @@ type game_move = {
   move: bytes
 };
 
-type validation_response = 
-| ["DisqualifyPlayerFromGame", key, game_id];
+type signed_game_move = {
+  game_move: game_move,
+  signatures: map<key_hash, signature> 
+}
 
+type validation_response = 
+| ["MoveIsValid", [game_move, bool]];
 type validate_game_move_params = [game_move, unit];
