@@ -1,26 +1,19 @@
-type game_id = nat;
+/*
+   ________                           ____.       __
+  /  _____/_____    _____   ____     |    |__ ___/  |_  ________ __
+ /   \  ___\__  \  /     \_/ __ \    |    |  |  \   __\/  ___/  |  \
+ \    \_\  \/ __ \|  Y Y  \  ___//\__|    |  |  /|  |  \___ \|  |  /
+  \______  (____  /__|_|  /\___  >________|____/ |__| /____  >____/
+         \/     \/      \/     \/                          \/
+https://tezos.gamejutsu.app
+*/
+// SPDX-License-Identifier: MIT
+#include "gj_types.jsligo"
 
-type game = { 
-    rules : address, 
-    started : bool,
-    finished: bool,
-    key_hash_to_player_id: map<key_hash, nat>,
-    players: [key, key]
-  } ;
 const disqualify = (g: game, p: key) =>
   ({...g, finished: true});
 
-
 type storage = map<nat, game>;
-
-type game_move = {
-  game_id: game_id,
-  nonce: nat,
-  player: key,
-  old_state: bytes,
-  new_state: bytes,
-  move: bytes
-}
 
 type signed_game_move = {
   game_move: game_move,
@@ -29,8 +22,8 @@ type signed_game_move = {
 
 type parameter =
 | ["DisputeMove", signed_game_move]
-| ["ProposeGame", address]
-| ["AcceptGame", game_id];
+| ["ProposeGame", [address, key]]
+| ["AcceptGame", [game_id, key]];
 
 const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) => {
   const game_id = signed_game_move.game_move.game_id;
@@ -50,16 +43,16 @@ const dispute_move = ([store, signed_game_move] : [storage, signed_game_move]) =
   });
 };
     
-const propose_game = ([store, rules] : [storage, address]) => store;
-const accept_game = ([store, game_id] : [storage, game_id]) => store;
+const propose_game = ([store, rules, key] : [storage, address, key]) => store;
+const accept_game = ([store, game_id, key] : [storage, game_id, key]) => store;
 
 const main = ([action, store] : [parameter, storage]) : [list <operation>, storage] => {
  return [
    list([]),
    (match (action, {
     DisputeMove: sgm => dispute_move ([store, sgm]),
-    ProposeGame: rules => propose_game ([store, rules]),
-    AcceptGame: game_id => accept_game ([store, game_id])}))
+    ProposeGame: rules_key => propose_game ([store, rules_key[0], rules_key[1]]),
+    AcceptGame: game_id_key => accept_game ([store, game_id_key[0], game_id_key[1]])}))
   ]
 };
 

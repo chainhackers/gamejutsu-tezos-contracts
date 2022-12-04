@@ -82,7 +82,8 @@ const test = ((_: unit): unit => {
             [player_a_hash, 1 as nat],
             [player_b_hash, 1 as nat]
         ])),
-         players: [player_a, player_b]
+         players: [player_a, player_b],
+         winner: 0 as nat as player_id
       }) as game;
 
     const player_a_disqualified_game =  ({ 
@@ -93,7 +94,8 @@ const test = ((_: unit): unit => {
             [player_a_hash, 1 as nat],
             [player_b_hash, 1 as nat]
         ])),
-         players: [player_a, player_b]
+         players: [player_a, player_b],
+        winner: 2 as nat as player_id
       }) as game;
 
 
