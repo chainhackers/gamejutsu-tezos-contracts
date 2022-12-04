@@ -73,3 +73,9 @@ const move_is_signed_by_mover = (signed_move: signed_game_move) => {
    None: () => false
   });
 };
+
+const player_is_in_game = (player: key, game_id: nat) => false;
+
+const game_move_is_signed_by = (game_move: game_move, key: key) => false;
+
+const game_move_is_valid = (game_move: game_move) => false;
